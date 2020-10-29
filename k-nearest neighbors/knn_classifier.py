@@ -211,19 +211,33 @@ class KnnClassifier(object):
 
 
         sorted_indexes = distances.argsort()
-        closest_neighbors_idx = sorted_indexes[:num_neighbors]
+        times_max_count = 1
+        tmp = 0
 
-        closest_labels = []
-        for neighbor_idx in closest_neighbors_idx:
-            closest_labels.append(self.train_labels[neighbor_idx])
+        while True:
+            closest_neighbors_idx = sorted_indexes[:num_neighbors+tmp]
 
-        label_values, label_counts = np.unique(closest_labels, return_counts=True)
-        majority_label_idx = np.argmax(label_counts)
+            closest_labels = []
+            for neighbor_idx in closest_neighbors_idx:
+                closest_labels.append(self.train_labels[neighbor_idx])
 
-        if return_neighbors_idx==True:
-            return label_values[majority_label_idx], closest_neighbors_idx
+            label_values, label_counts = np.unique(closest_labels, return_counts=True)
+            majority_label_idx = np.argmax(label_counts)
 
-        return label_values[majority_label_idx]
+            # check for ties
+            max_count = np.max(label_counts)
+            times_max_count = np.count_nonzero(label_counts == max_count)
+            if times_max_count > 1:
+                if num_neighbors%2==1:
+                    tmp -= 2
+                else:
+                    tmp -= 1
+                continue
+
+            if return_neighbors_idx==True:
+                return label_values[majority_label_idx], closest_neighbors_idx[:num_neighbors]
+
+            return label_values[majority_label_idx]
 
     def get_predictions(self, test_images, num_neighbors=None, metric=None):
         """
@@ -343,6 +357,8 @@ if __name__ == '__main__':
     conf_matrix = knn_classifier._confusion_matrix(test_labels, predictions)
     np.set_printoptions(threshold=np.inf)
     print(conf_matrix)
+    acc_matrix = np.round(conf_matrix/np.sum(conf_matrix, axis=(1,))*100)
+    print(acc_matrix)
     np.set_printoptions(threshold=1000)
 
     import matplotlib.pyplot as plt
